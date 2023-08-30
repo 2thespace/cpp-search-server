@@ -60,12 +60,12 @@ public:
 
     void AddDocument(int document_id, const string& document) {
         const vector<string> words = SplitIntoWordsNoStop(document);
-        int wordsAmount = words.size(); // общее количество слов
-        //documents_.push_back({ document_id, words });
+        const int words_amount = words.size(); // общее количество слов
+        const double invers_words_amount = 1.0 / words_amount;
         for (auto& word : words)
         {
 
-            documents_[word][document_id] += 1.0 / wordsAmount; // вычисление TF
+            documents_[word][document_id] += invers_words_amount; // вычисление TF
         }
     }
 
@@ -131,14 +131,7 @@ private:
 
     vector<Document> FindAllDocuments(const Query& query_words) const {
         vector<Document> matched_documents;
-        /* for (const auto& document : documents_) {
-
-             if (relevance > 0) {
-                 matched_documents.push_back({ document.id, relevance });
-             }
-         }
-         */
-         // <id, relevance>
+        // <id, relevance>
         map<int, double> document_to_relevance_;
         double IDF = 0;
         // здесь вычисляется IDF
@@ -147,9 +140,10 @@ private:
             if (documents_.count(plusWord))
             {
                 double size = documents_.at(plusWord).size();
-                IDF = log(document_count_ / size);
+                IDF = CalculateIDF(size);
+
                 map<int, double> all_id_tf = documents_.at(plusWord);
-                for (auto& [id, TF]:all_id_tf)
+                for (auto& [id, TF] : all_id_tf)
                 {
                     document_to_relevance_[id] += IDF * TF;
                 }
@@ -160,7 +154,7 @@ private:
             if (documents_.count(minusWord))
             {
                 map<int, double> all_id_tf = documents_.at(minusWord);
-                for (auto& [id, TF]:all_id_tf)
+                for (auto& [id, TF] : all_id_tf)
                 {
                     document_to_relevance_.erase(id);
                 }
@@ -170,7 +164,10 @@ private:
             matched_documents.push_back({ id, relevance });
         return matched_documents;
     }
-
+     double CalculateIDF(double size) const
+    {
+        return log(document_count_ / size);
+    }
 };
 
 SearchServer CreateSearchServer() {
