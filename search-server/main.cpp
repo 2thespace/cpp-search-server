@@ -11,6 +11,11 @@
 
 using namespace std;
 
+
+/*
+* Теперь бросается исключение только в ParseQueryWord
+* Честно говоря, для подобного "вложенного исключения" было бы здорово выделить одно задание, потому что такой ход не очень очевидный
+*/
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 const double EPSILON = 1e-6;
 
@@ -81,7 +86,7 @@ set<string> MakeUniqueNonEmptyStrings(const StringContainer& strings) {
             non_empty_strings.insert(str);
             if (IsNotValidWord(str))
             {
-                throw str;
+                throw invalid_argument("Stop word "s + str + " is uncorrect"s); 
             }
         }
     }
@@ -101,16 +106,12 @@ public:
     explicit SearchServer(const StringContainer& stop_words) 
     {
         
-        // можно было бы сразу выкидывать ислючение в MakeUnique, но IsNotValidWord определен только в классе. Поэтому обходим еще раз
-        try
-        {
+        
            this->stop_words_ = MakeUniqueNonEmptyStrings(stop_words);
            
-        }
-        catch (const string& s)
-        {
-            throw invalid_argument(s);
-        }
+        
+
+
         
         
     }
@@ -148,7 +149,7 @@ public:
             throw invalid_argument("Document ID "s + to_string(document_id) + " is exist)"s);
         }
 
-        try {
+        
             const vector<string> words = SplitIntoWordsNoStop(document);
             const double inv_word_count = 1.0 / words.size();
 
@@ -158,11 +159,8 @@ public:
             }
             document_id_.push_back(document_id);
             documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-        }
-        catch (string word)
-        {
-            throw invalid_argument("Word "s + word + " in document with id = "s + to_string(document_id) + " have incorrect charecters"s);
-        }
+        
+       
 
         
     }
@@ -171,10 +169,11 @@ public:
     vector<Document> FindTopDocuments(const string& raw_query,
         DocumentPredicate document_predicate) const {
 
-
+       
+           
+        
         const Query query = ParseQuery(raw_query);
-        try
-        {
+      
             auto matched_documents = FindAllDocuments(query, document_predicate);
 
 
@@ -194,13 +193,7 @@ public:
             }
 
             return  matched_documents;
-        }
-        catch (string word)
-        {
-            throw invalid_argument("Word "s + word + " is incorrect in query"s);
-            return {};
-
-        }
+        
     }
 
    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const {
@@ -231,8 +224,6 @@ public:
         const Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
-            if (IsNotValidWord(word))
-                throw invalid_argument("Word "s + word + " is uncorrect"s);
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -241,8 +232,6 @@ public:
             }
         }
         for (const string& word : query.minus_words) {
-            if (IsNotValidWord(word))
-                throw invalid_argument("Word "s + word + " is uncorrect"s);
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -280,7 +269,7 @@ private:
             if (!IsStopWord(word)) {
                 if (IsNotValidWord(word))
                 {
-                    throw (word);
+                    throw invalid_argument("Word "s + word + " is uncorrect"s);
                 }
                 words.push_back(word);
             }
@@ -310,6 +299,11 @@ private:
             is_minus = true;
             text = text.substr(1);
         }
+        // провера слова на корректность
+        if (IsNotValidWord(text))
+        {
+            throw invalid_argument("Word "s + text + " is uncorrect"s);
+        }
         return { text, is_minus, IsStopWord(text) };
     }
 
@@ -321,15 +315,17 @@ private:
     Query ParseQuery(const string& text) const {
         Query query;
         for (const string& word : SplitIntoWords(text)) {
-            const QueryWord query_word = ParseQueryWord(word);
-            if (!query_word.is_stop) {
-                if (query_word.is_minus) {
-                    query.minus_words.insert(query_word.data);
+           
+                const QueryWord query_word = ParseQueryWord(word);
+                if (!query_word.is_stop) {
+                    if (query_word.is_minus) {
+                        query.minus_words.insert(query_word.data);
+                    }
+                    else {
+                        query.plus_words.insert(query_word.data);
+                    }
                 }
-                else {
-                    query.plus_words.insert(query_word.data);
-                }
-            }
+            
         }
         return query;
     }
@@ -344,10 +340,6 @@ private:
         DocumentPredicate document_predicate) const {
         map<int, double> document_to_relevance;
         for (const string& word : query.plus_words) {
-            if (IsNotValidWord(word))
-            {
-                throw(word);
-            }
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -362,10 +354,7 @@ private:
         }
 
         for (const string& word : query.minus_words) {
-            if (IsNotValidWord(word))
-            {
-                throw(word);
-            }
+
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -505,7 +494,7 @@ void TryFindDocument(SearchServer& search_server, const string& query)
         cout << "Error: " << e.what() << endl;
         return;
     }
-    cout << "IsCorrect : " << endl;
+    cout << "IsCorrect " << endl;
 }
 void TestFindTopDocument(void)
 {
