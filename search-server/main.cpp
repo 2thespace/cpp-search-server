@@ -122,7 +122,7 @@ public:
             throw out_of_range("ID index = "s + to_string(index) + " is out of range"s);
             return INVALID_DOCUMENT_ID;
         }
-        return index;
+        return document_id_[index];
 
     }
 
@@ -137,10 +137,15 @@ public:
         const vector<int>& ratings) {
 
 
-        if ((document_id < 0) || (documents_.count(document_id)))
+        if (document_id < 0) 
         {
 
-            throw invalid_argument("Document ID "s + to_string(document_id) + " is invalid(negative or id is exist)"s);
+            throw invalid_argument("Document ID "s + to_string(document_id) + " is negative"s);
+        }
+        if ( documents_.count(document_id) )
+        {
+
+            throw invalid_argument("Document ID "s + to_string(document_id) + " is exist)"s);
         }
 
         try {
@@ -151,6 +156,7 @@ public:
             {
                 word_to_document_freqs_[word][document_id] += inv_word_count;
             }
+            document_id_.push_back(document_id);
             documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
         }
         catch (string word)
@@ -214,9 +220,13 @@ public:
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query,
         int document_id) const {
-        if ((GetDocumentId(document_id) == INVALID_DOCUMENT_ID))
+        if ((document_id) < 0)
         {
-            throw invalid_argument("ID " + to_string (document_id) + " is uncorrect");
+            throw invalid_argument("Document ID "s + to_string(document_id) + " is negative"s);
+        }
+        if (count(document_id_.begin(), document_id_.end(), document_id) == 0)
+        {
+            throw invalid_argument("Document ID "s + to_string(document_id) + " is not exist"s);
         }
         const Query query = ParseQuery(raw_query);
         vector<string> matched_words;
@@ -249,6 +259,7 @@ public:
 
 private:
 
+    vector<int> document_id_ = {};
     struct DocumentData {
         int rating;
         DocumentStatus status;
@@ -262,24 +273,7 @@ private:
     bool IsStopWord(const string& word) const {
         return stop_words_.count(word) > 0;
     }
-    bool IsCorrectWords(const string& raw_text) const
-    {
-        const auto& words = SplitIntoWordsNoStop(raw_text);
-        for (const auto& word : words)
-        {
-            // если хотя бы один из символов принадлежил от 0 до 32 возвращает false
-            if (!none_of(word.begin(), word.end(), [](char c) {
-                return c >= '\0' && c < ' '; }
-                )
-                )
-                return false;
-            // если слово состоит только из "-" или в нем больше чем один минус вначале слова вернуть flase
-            if ((word == "-"s) || (word[0] == '-') || (word[1] == '-')) {
-                return false;
-            }
-        }
-        return true;
-    }
+   
     vector<string> SplitIntoWordsNoStop(const string& text) const {
         vector<string> words;
         for (const string& word : SplitIntoWords(text)) {
