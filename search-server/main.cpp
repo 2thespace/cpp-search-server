@@ -34,7 +34,7 @@ int main() {
     auto results = search_server.FindTopDocuments(std::string("big tail"));
     for (auto& result : results)
     {
-        std::cout << result;
+        std::cout << result << std::endl;
     }
     return 0;
 }
